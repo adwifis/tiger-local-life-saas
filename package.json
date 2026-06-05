@@ -1,0 +1,45 @@
+{
+  "name": "tiger-local-life-saas",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "next typegen && tsc --noEmit",
+    "lint": "npm run typecheck",
+    "setup:local": "bash scripts/bootstrap-local.sh",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "tsx prisma/seed.ts",
+    "db:studio": "prisma studio",
+    "check:env": "node scripts/check-env.mjs",
+    "security:audit": "node scripts/security-audit.mjs",
+    "verify:runtime": "node scripts/verify-runtime.mjs",
+    "ai:auto": "bash scripts/codex-mode.sh auto",
+    "ai:daily": "bash scripts/codex-mode.sh cxb",
+    "ai:max": "bash scripts/codex-mode.sh cxbm",
+    "ai:plan": "bash scripts/codex-mode.sh cx",
+    "ai:verify": "bash scripts/verify-codex-bailian.sh",
+    "ops:show": "bash scripts/show-ops-links.sh"
+  },
+  "dependencies": {
+    "@prisma/client": "6.19.3",
+    "next": "latest",
+    "openai": "^6.42.0",
+    "react": "latest",
+    "react-dom": "latest",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "latest",
+    "@types/react": "latest",
+    "@types/react-dom": "latest",
+    "prisma": "6.19.3",
+    "tsx": "latest",
+    "typescript": "latest"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  }
+}
