@@ -1,3 +1,5 @@
+import "dotenv/config";
+
 const checks = [
   {
     name: "APP_ENV",
