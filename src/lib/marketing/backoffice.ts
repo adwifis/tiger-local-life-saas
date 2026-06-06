@@ -77,12 +77,7 @@ export async function getAdminWorkspace() {
       take: 8
     }),
     prisma.marketingPlan.findMany({
-      where: {
-        isActive: true
-      },
-      orderBy: {
-        priceCents: "asc"
-      }
+      orderBy: [{ isActive: "desc" }, { priceCents: "asc" }]
     }),
     prisma.marketingSubscription.findMany({
       orderBy: {
@@ -148,7 +143,8 @@ export async function getAdminWorkspace() {
       code: plan.code,
       roleScope: plan.roleScope,
       monthlyQuota: plan.monthlyQuota,
-      priceCents: plan.priceCents
+      priceCents: plan.priceCents,
+      isActive: plan.isActive
     })),
     subscriptions: subscriptions.map((subscription) => ({
       id: subscription.id,

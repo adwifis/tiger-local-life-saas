@@ -11,6 +11,7 @@ function toYuan(priceCents: number) {
 
 export default async function AdminPage() {
   const workspace = await getAdminWorkspace();
+  const activePlans = workspace.plans.filter((plan) => plan.isActive);
 
   return (
     <main className="shell">
@@ -84,11 +85,15 @@ export default async function AdminPage() {
             <div className="history-list">
               {workspace.plans.map((plan) => (
                 <article className="history-card" key={plan.id}>
-                  <strong>{plan.name}</strong>
+                  <strong>
+                    <Link href={`/admin/plans/${plan.code}`}>{plan.name}</Link>
+                  </strong>
                   <span>
                     {plan.code} · {plan.roleScope} · {plan.monthlyQuota} 次 / 月
                   </span>
-                  <span className="muted">{toYuan(plan.priceCents)}</span>
+                  <span className="muted">
+                    {toYuan(plan.priceCents)} · {plan.isActive ? "启用中" : "已停用"}
+                  </span>
                 </article>
               ))}
             </div>
@@ -109,7 +114,7 @@ export default async function AdminPage() {
         </section>
 
         <section className="section">
-          <SubscriptionOpener plans={workspace.plans} stores={workspace.stores} />
+          <SubscriptionOpener plans={activePlans} stores={workspace.stores} />
         </section>
 
         <section className="section grid-two">

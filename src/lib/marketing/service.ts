@@ -333,6 +333,79 @@ export async function listMarketingPlans() {
   });
 }
 
+export async function getMarketingPlanByCode(planCode: string) {
+  const plan = await prisma.marketingPlan.findUnique({
+    where: {
+      code: planCode
+    },
+    include: {
+      _count: {
+        select: {
+          subscriptions: true
+        }
+      }
+    }
+  });
+
+  if (!plan) {
+    return null;
+  }
+
+  return {
+    id: plan.id,
+    code: plan.code,
+    name: plan.name,
+    roleScope: plan.roleScope,
+    monthlyQuota: plan.monthlyQuota,
+    priceCents: plan.priceCents,
+    isActive: plan.isActive,
+    subscriptionCount: plan._count.subscriptions,
+    createdAt: plan.createdAt.toISOString().slice(0, 10),
+    updatedAt: plan.updatedAt.toISOString().slice(0, 16).replace("T", " ")
+  };
+}
+
+export async function updateMarketingPlan(params: {
+  planCode: string;
+  payload: {
+    name: string;
+    roleScope: "MERCHANT" | "AGENT";
+    monthlyQuota: number;
+    priceCents: number;
+    isActive: boolean;
+  };
+}) {
+  const existingPlan = await prisma.marketingPlan.findUnique({
+    where: {
+      code: params.planCode
+    }
+  });
+
+  if (!existingPlan) {
+    throw new Error("PLAN_NOT_FOUND");
+  }
+
+  const plan = await prisma.marketingPlan.update({
+    where: {
+      code: params.planCode
+    },
+    data: {
+      name: params.payload.name,
+      roleScope: params.payload.roleScope,
+      monthlyQuota: params.payload.monthlyQuota,
+      priceCents: params.payload.priceCents,
+      isActive: params.payload.isActive
+    }
+  });
+
+  return {
+    id: plan.id,
+    code: plan.code,
+    name: plan.name,
+    isActive: plan.isActive
+  };
+}
+
 export async function openMarketingSubscription(params: {
   storeSlug: string;
   planCode: string;
