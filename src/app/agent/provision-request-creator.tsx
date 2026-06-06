@@ -1,6 +1,36 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+
+type RequestStatusFilter = "ALL" | "PENDING" | "APPROVED" | "REJECTED";
+
+function statusLabel(status: string) {
+  if (status === "PENDING") {
+    return "待审核";
+  }
+
+  if (status === "APPROVED") {
+    return "已通过";
+  }
+
+  if (status === "REJECTED") {
+    return "已驳回";
+  }
+
+  return status;
+}
+
+function statusBadgeClass(status: string) {
+  if (status === "APPROVED") {
+    return "badge ok";
+  }
+
+  if (status === "REJECTED") {
+    return "badge danger";
+  }
+
+  return "badge warning";
+}
 
 export function ProvisionRequestCreator(props: {
   agent: {
@@ -25,7 +55,10 @@ export function ProvisionRequestCreator(props: {
       planName: string;
       months: number;
       status: string;
+      note: string;
+      reviewNote: string;
       createdAt: string;
+      reviewedAt: string;
     }>;
   };
 }) {
@@ -36,6 +69,12 @@ export function ProvisionRequestCreator(props: {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [activeFilter, setActiveFilter] = useState<RequestStatusFilter>("ALL");
+
+  const visibleRequests = useMemo(
+    () => props.agent.provisionRequests.filter((request) => activeFilter === "ALL" || request.status === activeFilter),
+    [activeFilter, props.agent.provisionRequests]
+  );
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -77,6 +116,7 @@ export function ProvisionRequestCreator(props: {
       setMessage(`${payload.provisionRequest?.storeName || "门店"} 的 ${payload.provisionRequest?.planName || ""} 开通申请已提交。`);
       setNote("");
       setMonths("1");
+      setActiveFilter("PENDING");
     } catch (submitError) {
       setError(submitError instanceof Error ? submitError.message : "提交失败。");
     } finally {
@@ -87,7 +127,7 @@ export function ProvisionRequestCreator(props: {
   return (
     <article className="card">
       <h2>提交套餐开通申请</h2>
-      <p className="muted">代理先提单，平台后台审核通过后再正式开通，避免线下消息丢失。</p>
+      <p className="muted">代理先提单，平台后台审核通过后再正式开通，减少线下消息丢单和口头确认误差。</p>
 
       <form className="marketing-form" onSubmit={handleSubmit}>
         <label className="field">
@@ -118,7 +158,7 @@ export function ProvisionRequestCreator(props: {
         </label>
 
         <label className="field">
-          <span>备注</span>
+          <span>申请备注</span>
           <textarea rows={3} value={note} onChange={(event) => setNote(event.target.value)} />
         </label>
 
@@ -132,14 +172,41 @@ export function ProvisionRequestCreator(props: {
         {error ? <p className="error-text">{error}</p> : null}
       </form>
 
+      <div className="filter-row">
+        {[
+          { key: "ALL", label: "全部" },
+          { key: "PENDING", label: "待审核" },
+          { key: "APPROVED", label: "已通过" },
+          { key: "REJECTED", label: "已驳回" }
+        ].map((item) => (
+          <button
+            className={activeFilter === item.key ? "button" : "button secondary"}
+            key={item.key}
+            onClick={() => setActiveFilter(item.key as RequestStatusFilter)}
+            type="button"
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
       <div className="history-list">
-        {props.agent.provisionRequests.map((request) => (
+        {visibleRequests.length === 0 ? <p className="muted">当前还没有符合条件的申请记录。</p> : null}
+
+        {visibleRequests.map((request) => (
           <article className="history-card" key={request.id}>
             <strong>{request.storeName}</strong>
-            <span>
-              {request.planName} · {request.months} 个月 · {request.status}
+            <div className="inline-meta">
+              <span>{request.planName}</span>
+              <span>{request.months} 个月</span>
+              <span className={statusBadgeClass(request.status)}>{statusLabel(request.status)}</span>
+            </div>
+            {request.note ? <span className="muted">申请备注：{request.note}</span> : null}
+            {request.reviewNote ? <span className="muted">平台反馈：{request.reviewNote}</span> : null}
+            <span className="muted">
+              提交于 {request.createdAt}
+              {request.reviewedAt ? ` · 处理于 ${request.reviewedAt}` : ""}
             </span>
-            <span className="muted">{request.createdAt}</span>
           </article>
         ))}
       </div>

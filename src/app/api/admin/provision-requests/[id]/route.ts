@@ -5,7 +5,8 @@ import { reviewMarketingProvisionRequest } from "@/lib/marketing/service";
 
 const reviewProvisionRequestSchema = z.object({
   decision: z.enum(["APPROVE", "REJECT"]),
-  reviewedByAdminEmail: z.string().email().optional()
+  reviewedByAdminEmail: z.string().email().optional(),
+  reviewNote: z.string().max(200).optional()
 });
 
 export const dynamic = "force-dynamic";
@@ -23,7 +24,8 @@ export async function PATCH(request: Request, context: { params: Promise<{ id: s
     const provisionRequest = await reviewMarketingProvisionRequest({
       requestId: id,
       decision: parsed.data.decision,
-      reviewedByAdminEmail: parsed.data.reviewedByAdminEmail
+      reviewedByAdminEmail: parsed.data.reviewedByAdminEmail,
+      reviewNote: parsed.data.reviewNote
     });
 
     return Response.json({ provisionRequest });

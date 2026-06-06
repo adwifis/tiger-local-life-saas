@@ -457,6 +457,7 @@ model MarketingProvisionRequest {
   plan              MarketingPlan                    @relation(fields: [planId], references: [id], onDelete: Restrict)
   months            Int                              @default(1)
   note              String?
+  reviewNote        String?
   status            MarketingProvisionRequestStatus  @default(PENDING)
   requestedByUserId String?
   requestedByUser   User?                            @relation("ProvisionRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)

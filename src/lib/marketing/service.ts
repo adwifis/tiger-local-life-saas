@@ -724,6 +724,7 @@ export async function reviewMarketingProvisionRequest(params: {
   requestId: string;
   decision: "APPROVE" | "REJECT";
   reviewedByAdminEmail?: string;
+  reviewNote?: string;
 }) {
   const [request, adminUser] = await Promise.all([
     prisma.marketingProvisionRequest.findUnique({
@@ -751,6 +752,7 @@ export async function reviewMarketingProvisionRequest(params: {
       where: { id: request.id },
       data: {
         status: MarketingProvisionRequestStatus.REJECTED,
+        reviewNote: params.reviewNote || null,
         reviewedByAdminId: adminUser?.id,
         reviewedAt: new Date()
       }
@@ -764,9 +766,10 @@ export async function reviewMarketingProvisionRequest(params: {
       storeId: request.storeId,
       agentId: request.agentId,
       planId: request.planId,
-      detail: "平台驳回了套餐开通申请。",
+      detail: params.reviewNote?.trim() ? `平台驳回了套餐开通申请：${params.reviewNote.trim()}` : "平台驳回了套餐开通申请。",
       metadata: {
-        requestId: rejected.id
+        requestId: rejected.id,
+        reviewNote: params.reviewNote || null
       }
     });
 
@@ -784,6 +787,7 @@ export async function reviewMarketingProvisionRequest(params: {
     where: { id: request.id },
     data: {
       status: MarketingProvisionRequestStatus.APPROVED,
+      reviewNote: params.reviewNote || null,
       reviewedByAdminId: adminUser?.id,
       reviewedAt: new Date()
     }
@@ -797,9 +801,12 @@ export async function reviewMarketingProvisionRequest(params: {
     storeId: request.storeId,
     agentId: request.agentId,
     planId: request.planId,
-    detail: `平台审核通过，并开通 ${request.months} 个月。`,
+    detail: params.reviewNote?.trim()
+      ? `平台审核通过，并开通 ${request.months} 个月。备注：${params.reviewNote.trim()}`
+      : `平台审核通过，并开通 ${request.months} 个月。`,
     metadata: {
-      requestId: approved.id
+      requestId: approved.id,
+      reviewNote: params.reviewNote || null
     }
   });
 

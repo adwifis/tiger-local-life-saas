@@ -82,7 +82,10 @@ export async function getAgentWorkspace() {
         planName: request.plan.name,
         months: request.months,
         status: request.status,
-        createdAt: request.createdAt.toISOString().slice(0, 16).replace("T", " ")
+        note: request.note || "",
+        reviewNote: request.reviewNote || "",
+        createdAt: request.createdAt.toISOString().slice(0, 16).replace("T", " "),
+        reviewedAt: request.reviewedAt ? request.reviewedAt.toISOString().slice(0, 16).replace("T", " ") : ""
       }))
   }));
 }
@@ -249,7 +252,9 @@ export async function getAdminWorkspace() {
       months: request.months,
       status: request.status,
       note: request.note || "",
-      createdAt: request.createdAt.toISOString().slice(0, 16).replace("T", " ")
+      reviewNote: request.reviewNote || "",
+      createdAt: request.createdAt.toISOString().slice(0, 16).replace("T", " "),
+      reviewedAt: request.reviewedAt ? request.reviewedAt.toISOString().slice(0, 16).replace("T", " ") : ""
     }))
   };
 }
