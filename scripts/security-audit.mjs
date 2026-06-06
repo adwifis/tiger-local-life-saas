@@ -39,7 +39,10 @@ const allowedPlaceholderValues = new Set([
   "dry-run",
   "qwen3.6-plus",
   "qwen3.7-max",
-  "tiger_ai_saas"
+  "tiger_ai_saas",
+  "replace_with_random_password",
+  "replace_with_random_secret",
+  "replace_with_random_admin_key"
 ]);
 
 const allowedFilesForEmptySecrets = new Set([".env.example", "AGENTS.md"]);

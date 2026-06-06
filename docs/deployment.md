@@ -26,11 +26,39 @@ npm run db:generate
 npm run db:push
 npm run build
 bash scripts/deploy-lite.sh
-npm run verify:runtime
+VERIFY_BASE_URL=http://127.0.0.1:${WEB_PORT} npm run verify:runtime
 ```
+
+## 当前独立部署约束
+
+- 旧项目仍占用 `80 -> 127.0.0.1:3000`
+- 新项目必须独立运行在：
+  - `WEB_PORT=3001`
+  - `POSTGRES_PORT=5434`
+  - `REDIS_PORT=6380`
+- 生产 `.env` 里必须设置：
+
+```bash
+COMPOSE_PROJECT_NAME=tiger_local_life_saas
+APP_ENV=production
+APP_URL=http://218.244.136.188:3001
+WEB_PORT=3001
+POSTGRES_PORT=5434
+REDIS_PORT=6380
+```
+
+- 当前阶段先通过 `http://218.244.136.188:3001` 验证新项目，不覆盖旧项目的 Nginx 80 端口。
+- 服务器内联调和健康检查优先使用：
+
+```bash
+VERIFY_BASE_URL=http://127.0.0.1:${WEB_PORT} npm run verify:runtime
+```
+
+避免宿主机访问公网 `APP_URL` 时受到回环或云网络策略影响。
 
 ## 生产必填环境变量
 
+- `COMPOSE_PROJECT_NAME`
 - `APP_ENV=production`
 - `APP_URL`
 - `DATABASE_URL`
@@ -56,3 +84,4 @@ npm run verify:runtime
 3. 确认数据库迁移可重复执行。
 4. 确认 `ADMIN_API_KEY` 已替换成随机值。
 5. 确认百炼真实 Key 已写入生产环境。
+6. 确认 `WEB_PORT / POSTGRES_PORT / REDIS_PORT` 未与旧项目冲突。

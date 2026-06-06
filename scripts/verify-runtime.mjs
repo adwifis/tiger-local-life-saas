@@ -1,4 +1,6 @@
-const baseUrl = process.env.APP_URL || "http://localhost:3000";
+import "dotenv/config";
+
+const baseUrl = process.env.VERIFY_BASE_URL || process.env.APP_URL || "http://localhost:3000";
 
 async function checkJson(path) {
   const response = await fetch(`${baseUrl}${path}`);

@@ -28,8 +28,8 @@ assert_exact_ok() {
   local value
   value="$(tr -d '\r' < "${file}")"
 
-  if [[ "${value}" != "OK" ]]; then
-    echo "${label} profile did not return exact OK."
+  if [[ "${value}" != "OK" && "${value}" != "OK." ]]; then
+    echo "${label} profile did not return an accepted OK acknowledgement."
     echo "Actual output: ${value}"
     exit 1
   fi

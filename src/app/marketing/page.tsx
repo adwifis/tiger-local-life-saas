@@ -1,11 +1,17 @@
 import Link from "next/link";
 
 import { getMarketingDashboard } from "@/lib/marketing/dashboard";
+import { listMarketingStores, listMarketingTemplates } from "@/lib/marketing/service";
+import { MarketingConsole } from "@/app/marketing/marketing-console";
 
 export const dynamic = "force-dynamic";
 
 export default async function MarketingPage() {
-  const dashboard = await getMarketingDashboard();
+  const [dashboard, stores, templates] = await Promise.all([
+    getMarketingDashboard(),
+    listMarketingStores(),
+    listMarketingTemplates()
+  ]);
 
   return (
     <main className="shell">
@@ -19,6 +25,12 @@ export default async function MarketingPage() {
           <div className="action-row">
             <Link className="button" href="/">
               返回首页
+            </Link>
+            <Link className="button secondary" href="/agent">
+              代理后台
+            </Link>
+            <Link className="button secondary" href="/admin">
+              平台后台
             </Link>
             <a className="button secondary" href="/api/marketing/templates">
               查看模板接口
@@ -39,49 +51,57 @@ export default async function MarketingPage() {
           ))}
         </section>
 
-        <section className="section grid-two">
+        <MarketingConsole
+          recentGenerations={dashboard.generations}
+          stores={stores}
+          templates={templates.map((template) => ({
+            id: template.id,
+            slug: template.slug,
+            name: template.name,
+            scene: template.scene,
+            platform: template.platform,
+            description: template.description,
+            inputSchema: template.inputSchema as Array<{
+              id: string;
+              label: string;
+              type: "text" | "textarea" | "number" | "single_select";
+              required?: boolean;
+              placeholder?: string;
+              options?: string[];
+            }>
+          }))}
+        />
+
+        <section className="section">
           <article className="card">
-            <h2>演示门店</h2>
+            <div className="panel-head">
+              <div>
+                <h2>门店资料入口</h2>
+                <p className="muted">商家首发版先维护单门店资料，后续再扩多门店切换。</p>
+              </div>
+            </div>
             <table className="table compact">
               <thead>
                 <tr>
                   <th>门店</th>
                   <th>行业</th>
                   <th>城市</th>
-                  <th>商圈</th>
+                  <th>剩余额度</th>
+                  <th>操作</th>
                 </tr>
               </thead>
               <tbody>
-                {dashboard.stores.map((store) => (
+                {stores.map((store) => (
                   <tr key={store.id}>
                     <td>{store.name}</td>
                     <td>{store.industry}</td>
                     <td>{store.city}</td>
-                    <td>{store.businessArea || "-"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </article>
-
-          <article className="card">
-            <h2>最近生成</h2>
-            <table className="table compact">
-              <thead>
-                <tr>
-                  <th>门店</th>
-                  <th>模板</th>
-                  <th>状态</th>
-                  <th>模型</th>
-                </tr>
-              </thead>
-              <tbody>
-                {dashboard.generations.map((item) => (
-                  <tr key={item.id}>
-                    <td>{item.storeName}</td>
-                    <td>{item.templateName}</td>
-                    <td>{item.status}</td>
-                    <td>{item.model}</td>
+                    <td>{store.remainingQuota}</td>
+                    <td>
+                      <Link className="button secondary" href={`/marketing/stores/${store.slug}`}>
+                        编辑资料
+                      </Link>
+                    </td>
                   </tr>
                 ))}
               </tbody>

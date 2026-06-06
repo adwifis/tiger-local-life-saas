@@ -190,6 +190,12 @@ select {
   border-bottom: 1px solid var(--line);
 }
 
+.table-subtext {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .table.compact th,
 .table.compact td {
   padding: 10px 8px;
@@ -229,6 +235,130 @@ select {
   margin: 0;
 }
 
+.panel-head {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.panel-head p {
+  margin: 6px 0 0;
+}
+
+.quota-chip {
+  display: grid;
+  min-width: 132px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+  text-align: right;
+}
+
+.quota-chip strong {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.quota-chip span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.marketing-form,
+.field-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.field-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.field {
+  display: grid;
+  gap: 8px;
+}
+
+.field span {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.field input,
+.field textarea,
+.field select {
+  width: 100%;
+  padding: 12px 14px;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.field textarea {
+  resize: vertical;
+}
+
+.store-brief,
+.result-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.template-brief h3,
+.template-brief p {
+  margin: 0;
+}
+
+.template-brief p {
+  margin-top: 6px;
+  color: var(--muted);
+}
+
+.result-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.result-panel pre {
+  margin: 0;
+  padding: 14px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.75);
+  line-height: 1.7;
+}
+
+.history-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.history-card {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.45);
+}
+
+.error-text {
+  margin: 0;
+  color: #aa3c26;
+  font-size: 13px;
+  font-weight: 600;
+}
+
 .tag {
   padding: 4px 10px;
   border-radius: 999px;
@@ -241,7 +371,8 @@ select {
 @media (max-width: 900px) {
   .metrics,
   .grid-two,
-  .template-grid {
+  .template-grid,
+  .field-grid {
     grid-template-columns: 1fr;
   }
 

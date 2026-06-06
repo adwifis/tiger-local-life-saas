@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { AiProvider, ExecutionMode, MarketingGenerationStatus, Prisma } from "@prisma/client";
+import { AiProvider, ExecutionMode, MarketingGenerationStatus, MarketingTemplateStatus, Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
 
@@ -14,6 +14,10 @@ function getOpenAiClient() {
     apiKey: process.env.BAILIAN_API_KEY,
     baseURL: process.env.BAILIAN_BASE_URL
   });
+}
+
+function asStringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
 }
 
 function buildPrompt(params: {
@@ -97,12 +101,371 @@ export async function listMarketingTemplates() {
   });
 }
 
+export async function getMarketingTemplateBySlug(templateSlug: string) {
+  const template = await prisma.marketingTemplate.findUnique({
+    where: {
+      slug: templateSlug
+    },
+    include: {
+      category: true,
+      _count: {
+        select: {
+          generations: true
+        }
+      }
+    }
+  });
+
+  if (!template) {
+    return null;
+  }
+
+  const promptTemplate = (template.promptTemplate || {}) as {
+    system?: string;
+    outputFormat?: string[];
+    callToActionRule?: string;
+  };
+
+  return {
+    id: template.id,
+    slug: template.slug,
+    name: template.name,
+    categoryName: template.category.name,
+    industry: template.industry,
+    scene: template.scene,
+    platform: template.platform,
+    description: template.description,
+    sortOrder: template.sortOrder,
+    status: template.status,
+    inputSchema: template.inputSchema,
+    generationCount: template._count.generations,
+    promptTemplate: {
+      system: promptTemplate.system || "",
+      outputFormat: Array.isArray(promptTemplate.outputFormat) ? promptTemplate.outputFormat.join("\n") : "",
+      callToActionRule: promptTemplate.callToActionRule || ""
+    }
+  };
+}
+
+export async function updateMarketingTemplate(params: {
+  templateSlug: string;
+  payload: {
+    description: string;
+    sortOrder: number;
+    status: MarketingTemplateStatus;
+    promptSystem: string;
+    outputFormat: string[];
+    callToActionRule: string;
+  };
+}) {
+  const template = await prisma.marketingTemplate.update({
+    where: {
+      slug: params.templateSlug
+    },
+    data: {
+      description: params.payload.description,
+      sortOrder: params.payload.sortOrder,
+      status: params.payload.status,
+      promptTemplate: {
+        system: params.payload.promptSystem,
+        outputFormat: params.payload.outputFormat,
+        callToActionRule: params.payload.callToActionRule
+      }
+    }
+  });
+
+  return {
+    id: template.id,
+    slug: template.slug,
+    status: template.status
+  };
+}
+
 export async function listMarketingStores() {
-  return prisma.storeProfile.findMany({
+  const stores = await prisma.storeProfile.findMany({
+    orderBy: {
+      updatedAt: "desc"
+    },
+    include: {
+      quotas: {
+        where: {
+          status: "ACTIVE"
+        },
+        orderBy: {
+          updatedAt: "desc"
+        },
+        take: 1
+      },
+      agentLinks: true
+    }
+  });
+
+  return stores.map((store) => {
+    const quota = store.quotas[0] || null;
+
+    return {
+      id: store.id,
+      slug: store.slug,
+      name: store.name,
+      industry: store.industry,
+      city: store.city,
+      district: store.district,
+      businessArea: store.businessArea,
+      targetAudience: store.targetAudience,
+      brandTone: store.brandTone,
+      remainingQuota: quota ? Math.max(quota.monthlyLimit - quota.usedCount, 0) : 0,
+      monthlyLimit: quota?.monthlyLimit || 0,
+      usedCount: quota?.usedCount || 0,
+      hasAgent: store.agentLinks.length > 0
+    };
+  });
+}
+
+export async function getMarketingStoreBySlug(storeSlug: string) {
+  const store = await prisma.storeProfile.findUnique({
+    where: {
+      slug: storeSlug
+    },
+    include: {
+      quotas: {
+        where: {
+          status: "ACTIVE"
+        },
+        orderBy: {
+          updatedAt: "desc"
+        },
+        take: 1
+      },
+      subscriptions: {
+        orderBy: {
+          updatedAt: "desc"
+        },
+        take: 3,
+        include: {
+          plan: true
+        }
+      }
+    }
+  });
+
+  if (!store) {
+    return null;
+  }
+
+  const quota = store.quotas[0] || null;
+
+  return {
+    id: store.id,
+    slug: store.slug,
+    name: store.name,
+    industry: store.industry,
+    city: store.city,
+    district: store.district,
+    businessArea: store.businessArea,
+    avgTicketCents: store.avgTicketCents,
+    targetAudience: store.targetAudience,
+    brandTone: store.brandTone,
+    contactPhone: store.contactPhone,
+    mainProducts: asStringArray(store.mainProducts),
+    sellingPoints: asStringArray(store.sellingPoints),
+    remainingQuota: quota ? Math.max(quota.monthlyLimit - quota.usedCount, 0) : 0,
+    monthlyLimit: quota?.monthlyLimit || 0,
+    subscriptions: store.subscriptions.map((subscription) => ({
+      id: subscription.id,
+      status: subscription.status,
+      startAt: subscription.startAt.toISOString().slice(0, 10),
+      endAt: subscription.endAt.toISOString().slice(0, 10),
+      planName: subscription.plan.name
+    }))
+  };
+}
+
+export async function updateMarketingStore(params: {
+  storeSlug: string;
+  payload: {
+    name: string;
+    industry: string;
+    city: string;
+    district?: string | null;
+    businessArea?: string | null;
+    avgTicketCents?: number | null;
+    mainProducts: string[];
+    sellingPoints: string[];
+    targetAudience?: string | null;
+    brandTone?: string | null;
+    contactPhone?: string | null;
+  };
+}) {
+  const store = await prisma.storeProfile.update({
+    where: {
+      slug: params.storeSlug
+    },
+    data: {
+      name: params.payload.name,
+      industry: params.payload.industry,
+      city: params.payload.city,
+      district: params.payload.district || null,
+      businessArea: params.payload.businessArea || null,
+      avgTicketCents: params.payload.avgTicketCents ?? null,
+      mainProducts: params.payload.mainProducts,
+      sellingPoints: params.payload.sellingPoints,
+      targetAudience: params.payload.targetAudience || null,
+      brandTone: params.payload.brandTone || null,
+      contactPhone: params.payload.contactPhone || null
+    }
+  });
+
+  return {
+    id: store.id,
+    slug: store.slug,
+    name: store.name
+  };
+}
+
+export async function listMarketingPlans() {
+  return prisma.marketingPlan.findMany({
+    where: {
+      isActive: true
+    },
+    orderBy: {
+      priceCents: "asc"
+    }
+  });
+}
+
+export async function openMarketingSubscription(params: {
+  storeSlug: string;
+  planCode: string;
+  openedByAdminEmail?: string;
+  months?: number;
+}) {
+  const [store, plan, adminUser] = await Promise.all([
+    prisma.storeProfile.findUnique({
+      where: {
+        slug: params.storeSlug
+      }
+    }),
+    prisma.marketingPlan.findUnique({
+      where: {
+        code: params.planCode
+      }
+    }),
+    prisma.user.findUnique({
+      where: {
+        email: params.openedByAdminEmail || "admin@quoteai.local"
+      }
+    })
+  ]);
+
+  if (!store) {
+    throw new Error("STORE_NOT_FOUND");
+  }
+
+  if (!plan) {
+    throw new Error("PLAN_NOT_FOUND");
+  }
+
+  const months = Math.max(1, params.months || 1);
+  const startAt = new Date();
+  const endAt = new Date(startAt);
+  endAt.setMonth(endAt.getMonth() + months);
+
+  return prisma.$transaction(async (tx) => {
+    await tx.marketingSubscription.updateMany({
+      where: {
+        storeId: store.id,
+        status: "ACTIVE"
+      },
+      data: {
+        status: "SUPERSEDED"
+      }
+    });
+
+    const subscription = await tx.marketingSubscription.create({
+      data: {
+        storeId: store.id,
+        planId: plan.id,
+        status: "ACTIVE",
+        sourceType: "MANUAL",
+        startAt,
+        endAt,
+        openedByAdminId: adminUser?.id
+      },
+      include: {
+        plan: true,
+        store: true
+      }
+    });
+
+    const existingQuota = await tx.marketingQuota.findFirst({
+      where: {
+        storeId: store.id,
+        status: "ACTIVE"
+      },
+      orderBy: {
+        updatedAt: "desc"
+      }
+    });
+
+    const quota = existingQuota
+      ? await tx.marketingQuota.update({
+          where: {
+            id: existingQuota.id
+          },
+          data: {
+            monthlyLimit: plan.monthlyQuota,
+            usedCount: 0,
+            resetAt: endAt,
+            status: "ACTIVE"
+          }
+        })
+      : await tx.marketingQuota.create({
+          data: {
+            storeId: store.id,
+            monthlyLimit: plan.monthlyQuota,
+            usedCount: 0,
+            resetAt: endAt,
+            status: "ACTIVE"
+          }
+        });
+
+    return {
+      subscription: {
+        id: subscription.id,
+        storeName: subscription.store?.name || store.name,
+        planName: subscription.plan.name,
+        endAt: subscription.endAt.toISOString().slice(0, 10),
+        status: subscription.status
+      },
+      quota: {
+        monthlyLimit: quota.monthlyLimit,
+        usedCount: quota.usedCount,
+        remainingCount: Math.max(quota.monthlyLimit - quota.usedCount, 0)
+      }
+    };
+  });
+}
+
+async function claimStoreQuota(storeId: string) {
+  const quota = await prisma.marketingQuota.findFirst({
+    where: {
+      storeId,
+      status: "ACTIVE"
+    },
     orderBy: {
       updatedAt: "desc"
     }
   });
+
+  if (!quota) {
+    throw new Error("QUOTA_NOT_CONFIGURED");
+  }
+
+  if (quota.usedCount >= quota.monthlyLimit) {
+    throw new Error("QUOTA_EXCEEDED");
+  }
+
+  return quota;
 }
 
 export async function createMarketingGeneration(params: {
@@ -152,6 +515,7 @@ export async function createMarketingGeneration(params: {
   });
 
   const startedAt = Date.now();
+  const quota = await claimStoreQuota(store.id);
 
   if (executionMode === ExecutionMode.DRY_RUN) {
     const outputText = buildDryRunOutput({
@@ -162,27 +526,47 @@ export async function createMarketingGeneration(params: {
       inputs: params.inputs
     });
 
-    const record = await prisma.marketingGenerationRecord.create({
-      data: {
-        storeId: store.id,
-        templateId: template.id,
-        createdByUserId: createdByUser?.id,
-        title: `${store.name} - ${template.name}`,
-        inputPayload,
-        outputText,
-        outputJson: {
-          system: prompt.system,
-          user: prompt.user
-        },
-        provider: AiProvider.BAILIAN,
-        model: process.env.BAILIAN_DAILY_MODEL || "qwen3.6-plus",
-        executionMode,
-        status: MarketingGenerationStatus.DRY_RUN,
-        latencyMs: Date.now() - startedAt
-      }
+    const result = await prisma.$transaction(async (tx) => {
+      const record = await tx.marketingGenerationRecord.create({
+        data: {
+          storeId: store.id,
+          templateId: template.id,
+          createdByUserId: createdByUser?.id,
+          title: `${store.name} - ${template.name}`,
+          inputPayload,
+          outputText,
+          outputJson: {
+            system: prompt.system,
+            user: prompt.user
+          },
+          provider: AiProvider.BAILIAN,
+          model: process.env.BAILIAN_DAILY_MODEL || "qwen3.6-plus",
+          executionMode,
+          status: MarketingGenerationStatus.DRY_RUN,
+          latencyMs: Date.now() - startedAt
+        }
+      });
+
+      const nextQuota = await tx.marketingQuota.update({
+        where: { id: quota.id },
+        data: {
+          usedCount: {
+            increment: 1
+          }
+        }
+      });
+
+      return {
+        record,
+        quota: {
+          monthlyLimit: nextQuota.monthlyLimit,
+          usedCount: nextQuota.usedCount,
+          remainingCount: Math.max(nextQuota.monthlyLimit - nextQuota.usedCount, 0)
+        }
+      };
     });
 
-    return record;
+    return result;
   }
 
   const client = getOpenAiClient();
@@ -198,42 +582,62 @@ export async function createMarketingGeneration(params: {
     });
 
     const outputText = response.choices[0]?.message?.content?.trim() || "";
-    const record = await prisma.marketingGenerationRecord.create({
-      data: {
-        storeId: store.id,
-        templateId: template.id,
-        createdByUserId: createdByUser?.id,
-        title: `${store.name} - ${template.name}`,
-        inputPayload,
-        outputText,
-        outputJson: response as unknown as object,
-        provider: AiProvider.BAILIAN,
-        model: response.model,
-        executionMode,
-        status: MarketingGenerationStatus.SUCCEEDED,
-        latencyMs: Date.now() - startedAt,
-        tokensInput: response.usage?.prompt_tokens,
-        tokensOutput: response.usage?.completion_tokens
-      }
+    const result = await prisma.$transaction(async (tx) => {
+      const record = await tx.marketingGenerationRecord.create({
+        data: {
+          storeId: store.id,
+          templateId: template.id,
+          createdByUserId: createdByUser?.id,
+          title: `${store.name} - ${template.name}`,
+          inputPayload,
+          outputText,
+          outputJson: response as unknown as object,
+          provider: AiProvider.BAILIAN,
+          model: response.model,
+          executionMode,
+          status: MarketingGenerationStatus.SUCCEEDED,
+          latencyMs: Date.now() - startedAt,
+          tokensInput: response.usage?.prompt_tokens,
+          tokensOutput: response.usage?.completion_tokens
+        }
+      });
+
+      await tx.aiCallLog.create({
+        data: {
+          provider: AiProvider.BAILIAN,
+          model: response.model,
+          executionMode,
+          latencyMs: Date.now() - startedAt,
+          tokensInput: response.usage?.prompt_tokens,
+          tokensOutput: response.usage?.completion_tokens,
+          requestBody: {
+            system: prompt.system,
+            user: prompt.user
+          },
+          responseBody: response as unknown as object
+        }
+      });
+
+      const nextQuota = await tx.marketingQuota.update({
+        where: { id: quota.id },
+        data: {
+          usedCount: {
+            increment: 1
+          }
+        }
+      });
+
+      return {
+        record,
+        quota: {
+          monthlyLimit: nextQuota.monthlyLimit,
+          usedCount: nextQuota.usedCount,
+          remainingCount: Math.max(nextQuota.monthlyLimit - nextQuota.usedCount, 0)
+        }
+      };
     });
 
-    await prisma.aiCallLog.create({
-      data: {
-        provider: AiProvider.BAILIAN,
-        model: response.model,
-        executionMode,
-        latencyMs: Date.now() - startedAt,
-        tokensInput: response.usage?.prompt_tokens,
-        tokensOutput: response.usage?.completion_tokens,
-        requestBody: {
-          system: prompt.system,
-          user: prompt.user
-        },
-        responseBody: response as unknown as object
-      }
-    });
-
-    return record;
+    return result;
   } catch (error) {
     const message = error instanceof Error ? error.message : "UNKNOWN_BAILIAN_ERROR";
 
@@ -268,6 +672,13 @@ export async function createMarketingGeneration(params: {
       }
     });
 
-    return record;
+    return {
+      record,
+      quota: {
+        monthlyLimit: quota.monthlyLimit,
+        usedCount: quota.usedCount,
+        remainingCount: Math.max(quota.monthlyLimit - quota.usedCount, 0)
+      }
+    };
   }
 }

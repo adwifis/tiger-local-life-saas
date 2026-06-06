@@ -8,12 +8,13 @@
 git@github.com:adwifis/tiger-ai-saas.git
 ```
 
-当前仓库暂未配置远程地址。正式推送前需要确认：
+当前仓库远程：
 
-1. 新仓库名称
-2. 是否沿用旧组织
-3. 默认分支名
-4. 是否需要私有仓库
+```text
+git@github.com:adwifis/tiger-local-life-saas.git
+```
+
+当前默认分支已经推送到新仓库。后续只需要确认是否转私有仓库，以及是否继续沿用 `adwifis` 账号。
 
 ## 阿里云
 
@@ -32,7 +33,6 @@ git@github.com:adwifis/tiger-ai-saas.git
 
 - 服务器公网 IP / SSH Host
 - 生产域名
-- GitHub 新远程仓库地址
 - 百炼正式 API Key 所在环境
 - 数据库生产连接方式
 

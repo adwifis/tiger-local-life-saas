@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const record = await createMarketingGeneration(parsed.data);
+    const { record, quota } = await createMarketingGeneration(parsed.data);
 
     return Response.json({
       id: record.id,
@@ -29,11 +29,16 @@ export async function POST(request: Request) {
       executionMode: record.executionMode,
       outputText: record.outputText,
       errorMessage: record.errorMessage,
-      createdAt: record.createdAt
+      createdAt: record.createdAt,
+      quota
     });
   } catch (error) {
     const message = error instanceof Error ? error.message : "UNKNOWN_ERROR";
-    const status = message === "STORE_NOT_FOUND" || message === "TEMPLATE_NOT_FOUND" ? 404 : 500;
+    const status = message === "STORE_NOT_FOUND" || message === "TEMPLATE_NOT_FOUND"
+      ? 404
+      : message === "QUOTA_NOT_CONFIGURED" || message === "QUOTA_EXCEEDED"
+        ? 400
+        : 500;
 
     return Response.json(
       {
