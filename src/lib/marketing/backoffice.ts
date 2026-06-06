@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/db";
 
 export async function getAgentWorkspace() {
-  const agents = await prisma.agentProfile.findMany({
+  const [agents, activePlans, provisionRequests] = await Promise.all([
+    prisma.agentProfile.findMany({
     orderBy: {
       updatedAt: "desc"
     },
@@ -25,7 +26,26 @@ export async function getAgentWorkspace() {
         }
       }
     }
-  });
+    }),
+    prisma.marketingPlan.findMany({
+      where: {
+        isActive: true
+      },
+      orderBy: {
+        priceCents: "asc"
+      }
+    }),
+    prisma.marketingProvisionRequest.findMany({
+      orderBy: {
+        createdAt: "desc"
+      },
+      include: {
+        store: true,
+        plan: true
+      },
+      take: 8
+    })
+  ]);
 
   return agents.map((agent) => ({
     id: agent.id,
@@ -39,18 +59,36 @@ export async function getAgentWorkspace() {
 
       return {
         id: merchant.id,
+        storeSlug: merchant.store.slug,
         storeName: merchant.store.name,
         city: merchant.store.city,
         industry: merchant.store.industry,
         serviceStatus: merchant.serviceStatus,
         remainingQuota: quota ? Math.max(quota.monthlyLimit - quota.usedCount, 0) : 0
       };
-    })
+    }),
+    plans: activePlans.map((plan) => ({
+      id: plan.id,
+      name: plan.name,
+      code: plan.code,
+      monthlyQuota: plan.monthlyQuota,
+      priceCents: plan.priceCents
+    })),
+    provisionRequests: provisionRequests
+      .filter((request) => request.agentId === agent.id)
+      .map((request) => ({
+        id: request.id,
+        storeName: request.store.name,
+        planName: request.plan.name,
+        months: request.months,
+        status: request.status,
+        createdAt: request.createdAt.toISOString().slice(0, 16).replace("T", " ")
+      }))
   }));
 }
 
 export async function getAdminWorkspace() {
-  const [stores, agents, plans, subscriptions, generations, templates, operationLogs] = await Promise.all([
+  const [stores, agents, plans, subscriptions, generations, templates, operationLogs, provisionRequests] = await Promise.all([
     prisma.storeProfile.findMany({
       orderBy: {
         updatedAt: "desc"
@@ -124,6 +162,18 @@ export async function getAdminWorkspace() {
         actorUser: true
       },
       take: 8
+    }),
+    prisma.marketingProvisionRequest.findMany({
+      orderBy: {
+        createdAt: "desc"
+      },
+      include: {
+        store: true,
+        agent: true,
+        plan: true,
+        requestedByUser: true
+      },
+      take: 8
     })
   ]);
 
@@ -190,6 +240,16 @@ export async function getAdminWorkspace() {
       targetLabel: log.targetLabel,
       detail: log.detail || "",
       createdAt: log.createdAt.toISOString().slice(0, 16).replace("T", " ")
+    })),
+    provisionRequests: provisionRequests.map((request) => ({
+      id: request.id,
+      storeName: request.store.name,
+      agentName: request.agent?.companyName || request.requestedByUser?.name || "-",
+      planName: request.plan.name,
+      months: request.months,
+      status: request.status,
+      note: request.note || "",
+      createdAt: request.createdAt.toISOString().slice(0, 16).replace("T", " ")
     }))
   };
 }

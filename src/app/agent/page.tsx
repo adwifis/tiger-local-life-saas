@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { getAgentWorkspace } from "@/lib/marketing/backoffice";
 import { MerchantCreator } from "@/app/agent/merchant-creator";
+import { ProvisionRequestCreator } from "@/app/agent/provision-request-creator";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,7 @@ export default async function AgentPage() {
 
         <section className="section">
           {agents[0] ? <MerchantCreator agent={agents[0]} /> : null}
+          {agents[0] ? <ProvisionRequestCreator agent={agents[0]} /> : null}
 
           {agents.map((agent) => (
             <article className="card" key={agent.id}>

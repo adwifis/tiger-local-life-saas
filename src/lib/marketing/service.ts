@@ -1,5 +1,5 @@
 import OpenAI from "openai";
-import { AiProvider, ExecutionMode, MarketingGenerationStatus, MarketingTemplateStatus, Prisma } from "@prisma/client";
+import { AiProvider, ExecutionMode, MarketingGenerationStatus, MarketingProvisionRequestStatus, MarketingTemplateStatus, Prisma } from "@prisma/client";
 
 import { prisma } from "@/lib/db";
 
@@ -654,6 +654,160 @@ export async function openMarketingSubscription(params: {
       }
     };
   });
+}
+
+export async function createMarketingProvisionRequest(params: {
+  storeSlug: string;
+  planCode: string;
+  months?: number;
+  note?: string;
+  requestedByUserEmail?: string;
+}) {
+  const [store, plan, requestedByUser] = await Promise.all([
+    prisma.storeProfile.findUnique({ where: { slug: params.storeSlug }, include: { agentLinks: { take: 1 } } }),
+    prisma.marketingPlan.findUnique({ where: { code: params.planCode } }),
+    params.requestedByUserEmail ? prisma.user.findUnique({ where: { email: params.requestedByUserEmail } }) : Promise.resolve(null)
+  ]);
+
+  if (!store) {
+    throw new Error("STORE_NOT_FOUND");
+  }
+
+  if (!plan) {
+    throw new Error("PLAN_NOT_FOUND");
+  }
+
+  const months = Math.max(1, params.months || 1);
+  const agentLink = store.agentLinks[0] || null;
+
+  const request = await prisma.marketingProvisionRequest.create({
+    data: {
+      storeId: store.id,
+      agentId: agentLink?.agentId || null,
+      planId: plan.id,
+      months,
+      note: params.note || null,
+      requestedByUserId: requestedByUser?.id
+    },
+    include: {
+      store: true,
+      plan: true
+    }
+  });
+
+  await recordMarketingOperation({
+    actorUserId: requestedByUser?.id,
+    action: "provision.request_created",
+    targetType: "provision_request",
+    targetLabel: `${request.store.name} · ${request.plan.name}`,
+    storeId: request.storeId,
+    agentId: request.agentId,
+    planId: request.planId,
+    detail: `代理提交开通申请 ${months} 个月。`,
+    metadata: {
+      storeSlug: request.store.slug,
+      planCode: request.plan.code,
+      months,
+      note: request.note
+    }
+  });
+
+  return {
+    id: request.id,
+    storeName: request.store.name,
+    planName: request.plan.name,
+    status: request.status
+  };
+}
+
+export async function reviewMarketingProvisionRequest(params: {
+  requestId: string;
+  decision: "APPROVE" | "REJECT";
+  reviewedByAdminEmail?: string;
+}) {
+  const [request, adminUser] = await Promise.all([
+    prisma.marketingProvisionRequest.findUnique({
+      where: { id: params.requestId },
+      include: {
+        store: true,
+        plan: true
+      }
+    }),
+    prisma.user.findUnique({
+      where: { email: params.reviewedByAdminEmail || "admin@quoteai.local" }
+    })
+  ]);
+
+  if (!request) {
+    throw new Error("REQUEST_NOT_FOUND");
+  }
+
+  if (request.status !== MarketingProvisionRequestStatus.PENDING) {
+    throw new Error("REQUEST_NOT_PENDING");
+  }
+
+  if (params.decision === "REJECT") {
+    const rejected = await prisma.marketingProvisionRequest.update({
+      where: { id: request.id },
+      data: {
+        status: MarketingProvisionRequestStatus.REJECTED,
+        reviewedByAdminId: adminUser?.id,
+        reviewedAt: new Date()
+      }
+    });
+
+    await recordMarketingOperation({
+      actorUserId: adminUser?.id,
+      action: "provision.request_rejected",
+      targetType: "provision_request",
+      targetLabel: `${request.store.name} · ${request.plan.name}`,
+      storeId: request.storeId,
+      agentId: request.agentId,
+      planId: request.planId,
+      detail: "平台驳回了套餐开通申请。",
+      metadata: {
+        requestId: rejected.id
+      }
+    });
+
+    return { requestId: rejected.id, status: rejected.status };
+  }
+
+  const opened = await openMarketingSubscription({
+    storeSlug: request.store.slug,
+    planCode: request.plan.code,
+    openedByAdminEmail: params.reviewedByAdminEmail,
+    months: request.months
+  });
+
+  const approved = await prisma.marketingProvisionRequest.update({
+    where: { id: request.id },
+    data: {
+      status: MarketingProvisionRequestStatus.APPROVED,
+      reviewedByAdminId: adminUser?.id,
+      reviewedAt: new Date()
+    }
+  });
+
+  await recordMarketingOperation({
+    actorUserId: adminUser?.id,
+    action: "provision.request_approved",
+    targetType: "provision_request",
+    targetLabel: `${request.store.name} · ${request.plan.name}`,
+    storeId: request.storeId,
+    agentId: request.agentId,
+    planId: request.planId,
+    detail: `平台审核通过，并开通 ${request.months} 个月。`,
+    metadata: {
+      requestId: approved.id
+    }
+  });
+
+  return {
+    requestId: approved.id,
+    status: approved.status,
+    subscription: opened.subscription
+  };
 }
 
 export async function createAgentMerchantStore(params: {

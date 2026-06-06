@@ -71,6 +71,12 @@ enum PlanScope {
   AGENT
 }
 
+enum MarketingProvisionRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model Workspace {
   id        String   @id @default(cuid())
   name      String
@@ -98,6 +104,8 @@ model User {
   marketingGenerations MarketingGenerationRecord[]
   adminOpenedSubscriptions MarketingSubscription[] @relation("SubscriptionOpenedByAdmin")
   marketingOperationLogs MarketingOperationLog[]   @relation("MarketingOperationActor")
+  provisionRequests    MarketingProvisionRequest[] @relation("ProvisionRequestedBy")
+  reviewedProvisionRequests MarketingProvisionRequest[] @relation("ProvisionReviewedBy")
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 }
@@ -286,6 +294,7 @@ model StoreProfile {
   quotas            MarketingQuota[]
   generations       MarketingGenerationRecord[]
   operationLogs     MarketingOperationLog[]
+  provisionRequests MarketingProvisionRequest[]
   createdAt         DateTime                   @default(now())
   updatedAt         DateTime                   @updatedAt
 }
@@ -303,6 +312,7 @@ model AgentProfile {
   subscriptions     MarketingSubscription[]
   quotas            MarketingQuota[]
   operationLogs     MarketingOperationLog[]
+  provisionRequests MarketingProvisionRequest[]
   createdAt         DateTime                   @default(now())
   updatedAt         DateTime                   @updatedAt
 }
@@ -394,6 +404,7 @@ model MarketingPlan {
   isActive          Boolean                    @default(true)
   subscriptions     MarketingSubscription[]
   operationLogs     MarketingOperationLog[]
+  provisionRequests MarketingProvisionRequest[]
   createdAt         DateTime                   @default(now())
   updatedAt         DateTime                   @updatedAt
 }
@@ -432,6 +443,30 @@ model MarketingQuota {
   createdAt         DateTime                   @default(now())
   updatedAt         DateTime                   @updatedAt
 
+  @@index([storeId, status])
+  @@index([agentId, status])
+}
+
+model MarketingProvisionRequest {
+  id                String                           @id @default(cuid())
+  storeId           String
+  store             StoreProfile                     @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  agentId           String?
+  agent             AgentProfile?                    @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  planId            String
+  plan              MarketingPlan                    @relation(fields: [planId], references: [id], onDelete: Restrict)
+  months            Int                              @default(1)
+  note              String?
+  status            MarketingProvisionRequestStatus  @default(PENDING)
+  requestedByUserId String?
+  requestedByUser   User?                            @relation("ProvisionRequestedBy", fields: [requestedByUserId], references: [id], onDelete: SetNull)
+  reviewedByAdminId String?
+  reviewedByAdmin   User?                            @relation("ProvisionReviewedBy", fields: [reviewedByAdminId], references: [id], onDelete: SetNull)
+  reviewedAt        DateTime?
+  createdAt         DateTime                         @default(now())
+  updatedAt         DateTime                         @updatedAt
+
+  @@index([status, createdAt])
   @@index([storeId, status])
   @@index([agentId, status])
 }

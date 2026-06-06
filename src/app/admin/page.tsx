@@ -2,6 +2,7 @@ import Link from "next/link";
 
 import { getAdminWorkspace } from "@/lib/marketing/backoffice";
 import { SubscriptionOpener } from "@/app/admin/subscription-opener";
+import { ProvisionRequestReviewer } from "@/app/admin/provision-request-reviewer";
 
 export const dynamic = "force-dynamic";
 
@@ -115,6 +116,10 @@ export default async function AdminPage() {
 
         <section className="section">
           <SubscriptionOpener plans={activePlans} stores={workspace.stores} />
+        </section>
+
+        <section className="section">
+          <ProvisionRequestReviewer requests={workspace.provisionRequests} />
         </section>
 
         <section className="section grid-two">
