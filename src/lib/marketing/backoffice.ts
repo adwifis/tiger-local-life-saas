@@ -31,6 +31,7 @@ export async function getAgentWorkspace() {
     id: agent.id,
     companyName: agent.companyName,
     contactName: agent.contactName || agent.ownerUser?.name || "-",
+    contactPhone: agent.contactPhone || "",
     status: agent.status,
     merchantCount: agent.merchants.length,
     merchants: agent.merchants.map((merchant) => {
@@ -49,7 +50,7 @@ export async function getAgentWorkspace() {
 }
 
 export async function getAdminWorkspace() {
-  const [stores, agents, plans, subscriptions, generations, templates] = await Promise.all([
+  const [stores, agents, plans, subscriptions, generations, templates, operationLogs] = await Promise.all([
     prisma.storeProfile.findMany({
       orderBy: {
         updatedAt: "desc"
@@ -114,6 +115,15 @@ export async function getAdminWorkspace() {
         }
       },
       take: 12
+    }),
+    prisma.marketingOperationLog.findMany({
+      orderBy: {
+        createdAt: "desc"
+      },
+      include: {
+        actorUser: true
+      },
+      take: 8
     })
   ]);
 
@@ -171,6 +181,15 @@ export async function getAdminWorkspace() {
       platform: template.platform,
       fieldCount: Array.isArray(template.inputSchema) ? template.inputSchema.length : 0,
       generationCount: template._count.generations
+    })),
+    operationLogs: operationLogs.map((log) => ({
+      id: log.id,
+      actorName: log.actorUser?.name || log.actorUser?.email || "系统",
+      action: log.action,
+      targetType: log.targetType,
+      targetLabel: log.targetLabel,
+      detail: log.detail || "",
+      createdAt: log.createdAt.toISOString().slice(0, 16).replace("T", " ")
     }))
   };
 }

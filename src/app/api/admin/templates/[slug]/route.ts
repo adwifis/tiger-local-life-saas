@@ -9,7 +9,8 @@ const updateTemplateSchema = z.object({
   status: z.enum(["ACTIVE", "DRAFT", "DISABLED"]),
   promptSystem: z.string().min(1),
   outputFormat: z.array(z.string().min(1)).min(1),
-  callToActionRule: z.string().min(1)
+  callToActionRule: z.string().min(1),
+  actorUserEmail: z.string().email().optional()
 });
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,15 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
   try {
     const template = await updateMarketingTemplate({
       templateSlug: slug,
-      payload: parsed.data
+      payload: {
+        description: parsed.data.description,
+        sortOrder: parsed.data.sortOrder,
+        status: parsed.data.status,
+        promptSystem: parsed.data.promptSystem,
+        outputFormat: parsed.data.outputFormat,
+        callToActionRule: parsed.data.callToActionRule
+      },
+      actorUserEmail: parsed.data.actorUserEmail
     });
 
     return Response.json({ template });

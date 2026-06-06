@@ -52,7 +52,8 @@ export function PlanEditor({ plan }: PlanEditorProps) {
           roleScope: form.roleScope,
           monthlyQuota: Number(form.monthlyQuota),
           priceCents: Number(form.priceCents),
-          isActive: form.isActive === "true"
+          isActive: form.isActive === "true",
+          actorUserEmail: "admin@quoteai.local"
         })
       });
 

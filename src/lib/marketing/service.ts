@@ -20,6 +20,50 @@ function asStringArray(value: unknown) {
   return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
 }
 
+function slugifyStoreName(name: string) {
+  const normalized = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9\u4e00-\u9fa5]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .replace(/-+/g, "-");
+
+  const base = normalized || `store-${Date.now()}`;
+
+  return `${base}-${Math.random().toString(36).slice(2, 6)}`;
+}
+
+async function recordMarketingOperation(params: {
+  actorUserId?: string | null;
+  action: string;
+  targetType: string;
+  targetLabel: string;
+  detail?: string;
+  storeId?: string | null;
+  agentId?: string | null;
+  planId?: string | null;
+  templateId?: string | null;
+  metadata?: Prisma.InputJsonValue;
+  tx?: Prisma.TransactionClient;
+}) {
+  const client = params.tx ?? prisma;
+
+  await client.marketingOperationLog.create({
+    data: {
+      actorUserId: params.actorUserId || null,
+      action: params.action,
+      targetType: params.targetType,
+      targetLabel: params.targetLabel,
+      detail: params.detail,
+      storeId: params.storeId || null,
+      agentId: params.agentId || null,
+      planId: params.planId || null,
+      templateId: params.templateId || null,
+      metadata: params.metadata
+    }
+  });
+}
+
 function buildPrompt(params: {
   store: {
     name: string;
@@ -157,7 +201,21 @@ export async function updateMarketingTemplate(params: {
     outputFormat: string[];
     callToActionRule: string;
   };
+  actorUserEmail?: string;
 }) {
+  const [existingTemplate, actorUser] = await Promise.all([
+    prisma.marketingTemplate.findUnique({
+      where: {
+        slug: params.templateSlug
+      }
+    }),
+    params.actorUserEmail ? prisma.user.findUnique({ where: { email: params.actorUserEmail } }) : Promise.resolve(null)
+  ]);
+
+  if (!existingTemplate) {
+    throw new Error("TEMPLATE_NOT_FOUND");
+  }
+
   const template = await prisma.marketingTemplate.update({
     where: {
       slug: params.templateSlug
@@ -171,6 +229,20 @@ export async function updateMarketingTemplate(params: {
         outputFormat: params.payload.outputFormat,
         callToActionRule: params.payload.callToActionRule
       }
+    }
+  });
+
+  await recordMarketingOperation({
+    actorUserId: actorUser?.id,
+    action: "template.updated",
+    targetType: "template",
+    targetLabel: template.name,
+    templateId: template.id,
+    detail: `更新模板状态为 ${template.status}，排序 ${template.sortOrder}。`,
+    metadata: {
+      templateSlug: template.slug,
+      status: template.status,
+      sortOrder: template.sortOrder
     }
   });
 
@@ -295,7 +367,21 @@ export async function updateMarketingStore(params: {
     brandTone?: string | null;
     contactPhone?: string | null;
   };
+  actorUserEmail?: string;
 }) {
+  const [existingStore, actorUser] = await Promise.all([
+    prisma.storeProfile.findUnique({
+      where: {
+        slug: params.storeSlug
+      }
+    }),
+    params.actorUserEmail ? prisma.user.findUnique({ where: { email: params.actorUserEmail } }) : Promise.resolve(null)
+  ]);
+
+  if (!existingStore) {
+    throw new Error("STORE_NOT_FOUND");
+  }
+
   const store = await prisma.storeProfile.update({
     where: {
       slug: params.storeSlug
@@ -312,6 +398,20 @@ export async function updateMarketingStore(params: {
       targetAudience: params.payload.targetAudience || null,
       brandTone: params.payload.brandTone || null,
       contactPhone: params.payload.contactPhone || null
+    }
+  });
+
+  await recordMarketingOperation({
+    actorUserId: actorUser?.id,
+    action: "store.updated",
+    targetType: "store",
+    targetLabel: store.name,
+    storeId: store.id,
+    detail: `更新门店资料：${store.city} · ${store.industry}。`,
+    metadata: {
+      storeSlug: store.slug,
+      city: store.city,
+      industry: store.industry
     }
   });
 
@@ -374,12 +474,16 @@ export async function updateMarketingPlan(params: {
     priceCents: number;
     isActive: boolean;
   };
+  actorUserEmail?: string;
 }) {
-  const existingPlan = await prisma.marketingPlan.findUnique({
-    where: {
-      code: params.planCode
-    }
-  });
+  const [existingPlan, actorUser] = await Promise.all([
+    prisma.marketingPlan.findUnique({
+      where: {
+        code: params.planCode
+      }
+    }),
+    params.actorUserEmail ? prisma.user.findUnique({ where: { email: params.actorUserEmail } }) : Promise.resolve(null)
+  ]);
 
   if (!existingPlan) {
     throw new Error("PLAN_NOT_FOUND");
@@ -395,6 +499,22 @@ export async function updateMarketingPlan(params: {
       monthlyQuota: params.payload.monthlyQuota,
       priceCents: params.payload.priceCents,
       isActive: params.payload.isActive
+    }
+  });
+
+  await recordMarketingOperation({
+    actorUserId: actorUser?.id,
+    action: "plan.updated",
+    targetType: "plan",
+    targetLabel: plan.name,
+    planId: plan.id,
+    detail: `套餐调整为 ${plan.monthlyQuota} 次 / 月，价格 ${plan.priceCents} 分，${plan.isActive ? "启用" : "停用"}。`,
+    metadata: {
+      planCode: plan.code,
+      roleScope: plan.roleScope,
+      monthlyQuota: plan.monthlyQuota,
+      priceCents: plan.priceCents,
+      isActive: plan.isActive
     }
   });
 
@@ -502,6 +622,23 @@ export async function openMarketingSubscription(params: {
           }
         });
 
+    await recordMarketingOperation({
+      actorUserId: adminUser?.id,
+      action: "subscription.opened",
+      targetType: "subscription",
+      targetLabel: `${store.name} · ${plan.name}`,
+      storeId: store.id,
+      planId: plan.id,
+      detail: `手工开通 ${months} 个月，到期 ${subscription.endAt.toISOString().slice(0, 10)}。`,
+      metadata: {
+        storeSlug: store.slug,
+        planCode: plan.code,
+        months,
+        endAt: subscription.endAt.toISOString()
+      },
+      tx
+    });
+
     return {
       subscription: {
         id: subscription.id,
@@ -515,6 +652,89 @@ export async function openMarketingSubscription(params: {
         usedCount: quota.usedCount,
         remainingCount: Math.max(quota.monthlyLimit - quota.usedCount, 0)
       }
+    };
+  });
+}
+
+export async function createAgentMerchantStore(params: {
+  agentId: string;
+  payload: {
+    name: string;
+    industry: string;
+    city: string;
+    district?: string | null;
+    businessArea?: string | null;
+    targetAudience?: string | null;
+    brandTone?: string | null;
+    contactPhone?: string | null;
+    mainProducts: string[];
+    sellingPoints: string[];
+  };
+  createdByUserEmail?: string;
+}) {
+  const [agent, createdByUser] = await Promise.all([
+    prisma.agentProfile.findUnique({
+      where: {
+        id: params.agentId
+      }
+    }),
+    params.createdByUserEmail ? prisma.user.findUnique({ where: { email: params.createdByUserEmail } }) : Promise.resolve(null)
+  ]);
+
+  if (!agent) {
+    throw new Error("AGENT_NOT_FOUND");
+  }
+
+  const slug = slugifyStoreName(params.payload.name);
+
+  return prisma.$transaction(async (tx) => {
+    const store = await tx.storeProfile.create({
+      data: {
+        ownerUserId: createdByUser?.id,
+        name: params.payload.name,
+        slug,
+        industry: params.payload.industry,
+        city: params.payload.city,
+        district: params.payload.district || null,
+        businessArea: params.payload.businessArea || null,
+        targetAudience: params.payload.targetAudience || null,
+        brandTone: params.payload.brandTone || null,
+        contactPhone: params.payload.contactPhone || null,
+        mainProducts: params.payload.mainProducts,
+        sellingPoints: params.payload.sellingPoints
+      }
+    });
+
+    await tx.agentMerchant.create({
+      data: {
+        agentId: agent.id,
+        storeId: store.id,
+        serviceStatus: "ACTIVE",
+        notes: "代理后台新建客户门店"
+      }
+    });
+
+    await recordMarketingOperation({
+      actorUserId: createdByUser?.id,
+      action: "agent.merchant_created",
+      targetType: "store",
+      targetLabel: store.name,
+      storeId: store.id,
+      agentId: agent.id,
+      detail: `代理新增客户门店：${store.city} · ${store.industry}。`,
+      metadata: {
+        storeSlug: store.slug,
+        companyName: agent.companyName
+      },
+      tx
+    });
+
+    return {
+      id: store.id,
+      slug: store.slug,
+      name: store.name,
+      city: store.city,
+      industry: store.industry
     };
   });
 }

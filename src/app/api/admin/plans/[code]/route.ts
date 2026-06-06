@@ -8,7 +8,8 @@ const updatePlanSchema = z.object({
   roleScope: z.enum(["MERCHANT", "AGENT"]),
   monthlyQuota: z.number().int().positive(),
   priceCents: z.number().int().nonnegative(),
-  isActive: z.boolean()
+  isActive: z.boolean(),
+  actorUserEmail: z.string().email().optional()
 });
 
 export const dynamic = "force-dynamic";
@@ -36,7 +37,14 @@ export async function PATCH(request: Request, context: { params: Promise<{ code:
   try {
     const plan = await updateMarketingPlan({
       planCode: code,
-      payload: parsed.data
+      payload: {
+        name: parsed.data.name,
+        roleScope: parsed.data.roleScope,
+        monthlyQuota: parsed.data.monthlyQuota,
+        priceCents: parsed.data.priceCents,
+        isActive: parsed.data.isActive
+      },
+      actorUserEmail: parsed.data.actorUserEmail
     });
 
     return Response.json({ plan });

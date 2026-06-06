@@ -14,7 +14,8 @@ const updateStoreSchema = z.object({
   sellingPoints: z.array(z.string().min(1)).default([]),
   targetAudience: z.string().optional(),
   brandTone: z.string().optional(),
-  contactPhone: z.string().optional()
+  contactPhone: z.string().optional(),
+  actorUserEmail: z.string().email().optional()
 });
 
 export const dynamic = "force-dynamic";
@@ -42,7 +43,20 @@ export async function PATCH(request: Request, context: { params: Promise<{ slug:
   try {
     const store = await updateMarketingStore({
       storeSlug: slug,
-      payload: parsed.data
+      payload: {
+        name: parsed.data.name,
+        industry: parsed.data.industry,
+        city: parsed.data.city,
+        district: parsed.data.district,
+        businessArea: parsed.data.businessArea,
+        avgTicketCents: parsed.data.avgTicketCents,
+        mainProducts: parsed.data.mainProducts,
+        sellingPoints: parsed.data.sellingPoints,
+        targetAudience: parsed.data.targetAudience,
+        brandTone: parsed.data.brandTone,
+        contactPhone: parsed.data.contactPhone
+      },
+      actorUserEmail: parsed.data.actorUserEmail
     });
 
     return Response.json({ store });

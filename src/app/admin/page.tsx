@@ -165,6 +165,26 @@ export default async function AdminPage() {
             </div>
           </article>
         </section>
+
+        <section className="section">
+          <article className="card">
+            <h2>最近操作日志</h2>
+            <div className="history-list">
+              {workspace.operationLogs.map((log) => (
+                <article className="history-card" key={log.id}>
+                  <strong>
+                    {log.actorName} · {log.action}
+                  </strong>
+                  <span>
+                    {log.targetType} · {log.targetLabel}
+                  </span>
+                  <span className="muted">{log.detail}</span>
+                  <span className="muted">{log.createdAt}</span>
+                </article>
+              ))}
+            </div>
+          </article>
+        </section>
       </section>
     </main>
   );

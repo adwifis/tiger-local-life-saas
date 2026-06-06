@@ -97,6 +97,7 @@ model User {
   ownedAgentProfile AgentProfile?        @relation("AgentOwner")
   marketingGenerations MarketingGenerationRecord[]
   adminOpenedSubscriptions MarketingSubscription[] @relation("SubscriptionOpenedByAdmin")
+  marketingOperationLogs MarketingOperationLog[]   @relation("MarketingOperationActor")
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 }
@@ -284,6 +285,7 @@ model StoreProfile {
   subscriptions     MarketingSubscription[]
   quotas            MarketingQuota[]
   generations       MarketingGenerationRecord[]
+  operationLogs     MarketingOperationLog[]
   createdAt         DateTime                   @default(now())
   updatedAt         DateTime                   @updatedAt
 }
@@ -300,6 +302,7 @@ model AgentProfile {
   merchants         AgentMerchant[]
   subscriptions     MarketingSubscription[]
   quotas            MarketingQuota[]
+  operationLogs     MarketingOperationLog[]
   createdAt         DateTime                   @default(now())
   updatedAt         DateTime                   @updatedAt
 }
@@ -349,6 +352,7 @@ model MarketingTemplate {
   sortOrder         Int                        @default(0)
   status            MarketingTemplateStatus    @default(ACTIVE)
   generations       MarketingGenerationRecord[]
+  operationLogs     MarketingOperationLog[]
   createdAt         DateTime                   @default(now())
   updatedAt         DateTime                   @updatedAt
 }
@@ -389,6 +393,7 @@ model MarketingPlan {
   priceCents        Int
   isActive          Boolean                    @default(true)
   subscriptions     MarketingSubscription[]
+  operationLogs     MarketingOperationLog[]
   createdAt         DateTime                   @default(now())
   updatedAt         DateTime                   @updatedAt
 }
@@ -429,4 +434,31 @@ model MarketingQuota {
 
   @@index([storeId, status])
   @@index([agentId, status])
+}
+
+model MarketingOperationLog {
+  id                String                     @id @default(cuid())
+  actorUserId       String?
+  actorUser         User?                      @relation("MarketingOperationActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+  action            String
+  targetType        String
+  targetLabel       String
+  detail            String?
+  storeId           String?
+  store             StoreProfile?              @relation(fields: [storeId], references: [id], onDelete: SetNull)
+  agentId           String?
+  agent             AgentProfile?              @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  planId            String?
+  plan              MarketingPlan?             @relation(fields: [planId], references: [id], onDelete: SetNull)
+  templateId        String?
+  template          MarketingTemplate?         @relation(fields: [templateId], references: [id], onDelete: SetNull)
+  metadata          Json?
+  createdAt         DateTime                   @default(now())
+
+  @@index([createdAt])
+  @@index([targetType, createdAt])
+  @@index([storeId, createdAt])
+  @@index([agentId, createdAt])
+  @@index([planId, createdAt])
+  @@index([templateId, createdAt])
 }

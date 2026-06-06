@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { getAgentWorkspace } from "@/lib/marketing/backoffice";
+import { MerchantCreator } from "@/app/agent/merchant-creator";
 
 export const dynamic = "force-dynamic";
 
@@ -25,13 +26,15 @@ export default async function AgentPage() {
         </div>
 
         <section className="section">
+          {agents[0] ? <MerchantCreator agent={agents[0]} /> : null}
+
           {agents.map((agent) => (
             <article className="card" key={agent.id}>
               <div className="panel-head">
                 <div>
                   <h2>{agent.companyName}</h2>
                   <p className="muted">
-                    {agent.contactName} · {agent.status} · 客户 {agent.merchantCount} 家
+                    {agent.contactName} {agent.contactPhone ? `· ${agent.contactPhone}` : ""} · {agent.status} · 客户 {agent.merchantCount} 家
                   </p>
                 </div>
                 <span className="badge ok">代理后台基础版</span>

@@ -60,7 +60,8 @@ export function TemplateEditor({ template }: TemplateEditorProps) {
           status: form.status,
           promptSystem: form.promptSystem,
           outputFormat: form.outputFormat.split("\n").map((item) => item.trim()).filter(Boolean),
-          callToActionRule: form.callToActionRule
+          callToActionRule: form.callToActionRule,
+          actorUserEmail: "admin@quoteai.local"
         })
       });
 

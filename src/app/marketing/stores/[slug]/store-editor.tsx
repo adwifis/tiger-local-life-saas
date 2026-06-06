@@ -76,7 +76,8 @@ export function StoreEditor({ store }: StoreEditorProps) {
           brandTone: form.brandTone,
           contactPhone: form.contactPhone,
           mainProducts: form.mainProducts.split("\n").map((item) => item.trim()).filter(Boolean),
-          sellingPoints: form.sellingPoints.split("\n").map((item) => item.trim()).filter(Boolean)
+          sellingPoints: form.sellingPoints.split("\n").map((item) => item.trim()).filter(Boolean),
+          actorUserEmail: "admin@quoteai.local"
         })
       });
 
